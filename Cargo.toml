@@ -9,6 +9,9 @@ edition = "2021"
 axum = "0.7.4"
 serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0.114"
-time = { version = "0.3.34", features = ["formatting", "macros"] }
+time = { version = "0.3.34", features = ["formatting", "macros", "serde", "parsing"] }
 tokio = { version = "1.36.0", features = ["full"] }
+uuid = { version = "1.7.0", features = ["v7", "serde"] }
 watch = "0.2.3"
+
+
