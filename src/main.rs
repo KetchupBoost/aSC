@@ -85,7 +85,7 @@ async fn create_person(
     State(people): State<AppState>,
     Json(new_person): Json<NewPerson>
 ) -> impl IntoResponse {
-    if new_person.name.len() > 100
+    if new_person.name.0.len() > 100
     || new_person.nick.len() > 32
     {
         return Err(StatusCode::UNPROCESSABLE_ENTITY);
