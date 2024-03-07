@@ -20,34 +20,39 @@ impl PostgresRepo {
     }
 
     pub async fn find_person(&self, id: Uuid) -> Result<Option<Person>, sqlx::Error> {
-        sqlx::query_as(
+        sqlx::query_as!(
+            Person,
             "
-            SELECT id, name, birth_date, stack
-            FROM people
+            SELECT id, name, nick, birth_date, stack
+            FROM person
             WHERE id=$1
             ",
+            id
         )
-        .bind(id)
         .fetch_optional(&self.pool)
         .await
     }
 
     pub async fn create_person(&self, new_person: NewPerson) -> Result<Person, sqlx::Error> {
-        sqlx::query_as(
+        let stack = new_person.stack
+            .map(|stk| stk.into_iter().map(String::from).collect());
+        let stack = match stack {
+            Some(stack) => stack,
+            None => vec![]
+        };
+
+        sqlx::query_as!(
+            Person,
             "
             INSERT INTO person(id, name, nick, birth_date, stack)
             VALUES ($1, $2, $3, $4, $5)
             RETURNING id, name, nick, birth_date, stack
-            "
-        )
-        .bind(Uuid::now_v7())
-        .bind(new_person.name.0)
-        .bind(new_person.nick.0)
-        .bind(new_person.birth_date)
-        .bind(
-            new_person
-                .stack
-                .map(|stk| stk.into_iter().map(String::from).collect::<Vec<String>>())
+            ",
+            Uuid::now_v7(),
+            new_person.name.0,
+            new_person.nick.0,
+            new_person.birth_date,
+            &stack
         )
         .fetch_one(&self.pool)
         .await
@@ -55,15 +60,16 @@ impl PostgresRepo {
 
     pub async fn search_person(&self, query: String) -> Result<Vec<Person>, sqlx::Error> {
         dbg!(&query);
-        sqlx::query_as(
+        sqlx::query_as!(
+            Person,
             "
             SELECT id, name, nick, birth_date, stack
             FROM person
             WHERE to_tsquery('person', $1) @@ search
             LIMIT 50
-            "
+            ",
+            query
         )
-        .bind(query)
         .fetch_all(&self.pool)
         .await
     }

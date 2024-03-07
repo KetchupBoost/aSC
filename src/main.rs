@@ -73,7 +73,7 @@ struct PersonSearchQuery {
     query: String
 }
 
-#[derive(Serialize, Clone, sqlx::FromRow)]
+#[derive(Serialize, sqlx::FromRow)]
 pub struct Person {
     pub id: Uuid,
     #[serde(rename = "nome")]
