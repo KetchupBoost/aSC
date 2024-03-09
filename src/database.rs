@@ -59,7 +59,6 @@ impl PostgresRepo {
     }
 
     pub async fn search_person(&self, query: String) -> Result<Vec<Person>, sqlx::Error> {
-        dbg!(&query);
         sqlx::query_as!(
             Person,
             "

@@ -73,7 +73,7 @@ struct PersonSearchQuery {
     query: String
 }
 
-#[derive(Serialize, sqlx::FromRow)]
+#[derive(Serialize)]
 pub struct Person {
     pub id: Uuid,
     #[serde(rename = "nome")]
@@ -100,6 +100,11 @@ type AppState = Arc<PostgresRepo>;
 
 #[tokio::main]
 async fn main() {
+    let port = env::var("PORT")
+        .ok()
+        .and_then(|port| port.parse::<u16>().ok())
+        .unwrap_or(9999);
+
     let url = env::var("DATABASE_URL")
         .unwrap_or(String::from("postgres://postgres:postgres@localhost:5432/postgres"));
     
@@ -114,17 +119,16 @@ async fn main() {
         .route("/contagem-pessoas", get(count_person))
         .with_state(app_state);
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:9999").await.unwrap();
+    let url = format!("0.0.0.0:{}", port);
+    let listener = tokio::net::TcpListener::bind(url).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
 
 async fn search_person(
     State(people): State<AppState>, 
-    // Query(PersonSearchQuery {query}): Query<PersonSearchQuery>
-    query: Query<PersonSearchQuery>
+    Query(PersonSearchQuery {query}): Query<PersonSearchQuery>
 ) -> impl IntoResponse {
-    dbg!(&query.query);
-    match people.search_person(query.query.to_string()).await {
+    match people.search_person(query.to_string()).await {
         Ok(people) => Ok(Json(people)),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR)
     }
@@ -134,7 +138,7 @@ async fn search_by_id(
     State(people): State<AppState>, 
     Path(person_id): Path<Uuid>
 ) -> impl IntoResponse {
-    match people.find_person(dbg!(person_id)).await {
+    match people.find_person(person_id).await {
         Ok(Some(person)) => Ok(Json(person)),
         Ok(None) => Err(StatusCode::NOT_FOUND),
         _ => Err(StatusCode::INTERNAL_SERVER_ERROR),
