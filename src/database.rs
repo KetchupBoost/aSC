@@ -1,11 +1,13 @@
+use std::vec;
+
 use sqlx::{postgres::PgPoolOptions, PgPool, Row};
 use uuid::Uuid;
 
-use crate::{NewPerson, Person};
+use crate::controllers::{NewPerson, Person, PersonName, PersonNick};
 
 #[derive(Debug)]
 pub struct PostgresRepo {
-    pool: PgPool,
+    pub pool: PgPool,
 }
 
 impl PostgresRepo {
@@ -34,10 +36,13 @@ impl PostgresRepo {
     }
 
     pub async fn create_person(&self, new_person: NewPerson) -> Result<Person, sqlx::Error> {
-        let stack = new_person.stack
-            .map(|stk| stk.into_iter().map(String::from).collect());
-        let stack = match stack {
-            Some(stack) => stack,
+        let stack = match &new_person.stack {
+            Some(stack) => {
+                stack
+                    .into_iter()
+                    .map(|tech| String::from(tech.clone()))
+                    .collect::<Vec<_>>()
+            },
             None => vec![]
         };
 
@@ -49,10 +54,10 @@ impl PostgresRepo {
             RETURNING id, name, nick, birth_date, stack
             ",
             Uuid::now_v7(),
-            new_person.name.0,
-            new_person.nick.0,
+            PersonName::get_name(&new_person),
+            PersonNick::get_nick(&new_person),
             new_person.birth_date,
-            &stack
+            &stack  
         )
         .fetch_one(&self.pool)
         .await
