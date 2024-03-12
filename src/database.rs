@@ -1,9 +1,26 @@
-use std::vec;
-
-use sqlx::{postgres::PgPoolOptions, PgPool, Row};
+use std::{error::Error, vec};
+use sqlx::Row;
 use uuid::Uuid;
+use sqlx::{postgres::PgPoolOptions, PgPool};
+use crate::{config::DbConfig, controllers::{NewPerson, Person, PersonName, PersonNick}};
 
-use crate::controllers::{NewPerson, Person, PersonName, PersonNick};
+pub enum DatabaseError {
+    UniqueViolation,
+    DatabaseError(Box<dyn Error + Send + Sync>),
+}
+
+impl From<sqlx::Error> for DatabaseError {
+    fn from(error: sqlx::Error) -> Self {
+        match error {
+            sqlx::Error::Database(err) if err.is_unique_violation() => {
+                DatabaseError::UniqueViolation
+            }
+            _ => DatabaseError::DatabaseError(Box::new(error)),
+        }
+    }
+}
+
+type DBError<T> = Result<T, DatabaseError>;
 
 #[derive(Debug)]
 pub struct PostgresRepo {
@@ -11,17 +28,23 @@ pub struct PostgresRepo {
 }
 
 impl PostgresRepo {
-    pub async fn connect(url: String) -> Self {
-        PostgresRepo {
-            pool: PgPoolOptions::new()
-                .max_connections(5)
-                .connect(&url)
-                .await
-                .unwrap()
-        }
+    pub async fn connect(cfg: DbConfig) -> DBError<Self> {
+        let url = format!(
+            "postgres://{}:{}@{}:{}/{}",
+            cfg.user, cfg.pwd, cfg.host, cfg.port, cfg.name
+        ).to_string();
+
+        Ok(
+            PostgresRepo {
+                pool: PgPoolOptions::new()
+                    .max_connections(cfg.pool)
+                    .connect(&url)
+                    .await?
+            }
+        )
     }
 
-    pub async fn find_person(&self, id: Uuid) -> Result<Option<Person>, sqlx::Error> {
+    pub async fn find_person(&self, id: Uuid) -> DBError<Option<Person>> {
         sqlx::query_as!(
             Person,
             "
@@ -33,9 +56,10 @@ impl PostgresRepo {
         )
         .fetch_optional(&self.pool)
         .await
+        .map_err(DatabaseError::from)
     }
 
-    pub async fn create_person(&self, new_person: NewPerson) -> Result<Person, sqlx::Error> {
+    pub async fn create_person(&self, new_person: NewPerson) -> DBError<Person> {
         let stack = match &new_person.stack {
             Some(stack) => {
                 stack
@@ -61,9 +85,10 @@ impl PostgresRepo {
         )
         .fetch_one(&self.pool)
         .await
+        .map_err(DatabaseError::from)
     }
 
-    pub async fn search_person(&self, query: String) -> Result<Vec<Person>, sqlx::Error> {
+    pub async fn search_person(&self, query: String) -> DBError<Vec<Person>> {
         sqlx::query_as!(
             Person,
             "
@@ -76,12 +101,14 @@ impl PostgresRepo {
         )
         .fetch_all(&self.pool)
         .await
+        .map_err(DatabaseError::from)
     }
 
-    pub async fn count_people(&self) -> Result<i64, sqlx::Error> {
-        sqlx::query("SELECT count(*) FROM person")
+    pub async fn count_people(&self) -> DBError<i64> {
+        sqlx::query("SELECT COUNT(*) AS count FROM person")
             .fetch_one(&self.pool)
             .await
             .map(|row| row.get(0))
+            .map_err(DatabaseError::from)
     }
 }

@@ -1,4 +1,5 @@
 use axum::{extract::{Path, Query, State}, http::StatusCode, response::IntoResponse, Json};
+use crate::database::DatabaseError::UniqueViolation;
 use serde::{Deserialize, Serialize};
 use time::Date;
 use uuid::Uuid;
@@ -6,6 +7,7 @@ use uuid::Uuid;
 time::serde::format_description!(date_format, Date, "[year]-[month]-[day]");
 
 #[derive(Serialize)]
+#[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
 pub struct Person {
     pub id: Uuid,
     #[serde(rename = "nome")]
@@ -30,6 +32,7 @@ pub struct NewPerson {
 
 #[derive(Serialize, Clone, Deserialize)]
 #[serde(try_from="String")]
+
 pub struct PersonName(String);
 
 #[derive(Serialize, Clone, Deserialize)]
@@ -129,7 +132,7 @@ pub async fn create_person(
 ) -> impl IntoResponse {
     match people.create_person(new_person).await {
         Ok(person) => Ok((StatusCode::CREATED, Json(person))),
-        Err(sqlx::Error::Database(err)) if err.is_unique_violation() => {
+        Err(UniqueViolation) => {
             Err(StatusCode::UNPROCESSABLE_ENTITY)
         },
         Err(_) => {
