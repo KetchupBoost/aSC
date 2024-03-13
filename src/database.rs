@@ -4,17 +4,24 @@ use uuid::Uuid;
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use crate::{config::DbConfig, controllers::{NewPerson, Person, PersonName, PersonNick}};
 
+#[derive(Debug)]
 pub enum DatabaseError {
     UniqueViolation,
     DatabaseError(Box<dyn Error + Send + Sync>),
 }
+
+// impl From<dyn Error + 'static + Sync + Send> for DatabaseError<'static> {
+//     fn from(err: &'static dyn Error) -> &'static Self {
+//         &DatabaseError::DatabaseError(Box::new(err))
+//     }
+// }
 
 impl From<sqlx::Error> for DatabaseError {
     fn from(error: sqlx::Error) -> Self {
         match error {
             sqlx::Error::Database(err) if err.is_unique_violation() => {
                 DatabaseError::UniqueViolation
-            }
+            },
             _ => DatabaseError::DatabaseError(Box::new(error)),
         }
     }
@@ -30,10 +37,9 @@ pub struct PostgresRepo {
 impl PostgresRepo {
     pub async fn connect(cfg: DbConfig) -> DBError<Self> {
         let url = format!(
-            "postgres://{}:{}@{}:{}/{}",
-            cfg.user, cfg.pwd, cfg.host, cfg.port, cfg.name
+            "postgres://{}:{}@db/{}",
+            cfg.user, cfg.pwd, cfg.name
         ).to_string();
-
         Ok(
             PostgresRepo {
                 pool: PgPoolOptions::new()

@@ -7,14 +7,17 @@ use axum::{
     routing::{get, post}, Router
 };
 use database::PostgresRepo;
+use dotenv::dotenv;
 
 pub type AppState = Arc<PostgresRepo>;
 pub type AsyncVoidResult = Result<(), Box<dyn Error + Send + Sync>>;
 
 #[tokio::main]
 async fn main() -> AsyncVoidResult {
+    dotenv().ok();
+
     let cfg = config::DbConfig::new()?;
-    let conn = PostgresRepo::connect(cfg).await;
+    let conn = PostgresRepo::connect(cfg).await.unwrap();
 
     let _ = config::init_redis_pool()?;
 
@@ -22,7 +25,6 @@ async fn main() -> AsyncVoidResult {
         .ok()
         .and_then(|port| port.parse::<u16>().ok())
         .unwrap_or(9999);
-
 
     let app_state = Arc::new(conn);
 

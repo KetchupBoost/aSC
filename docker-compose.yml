@@ -9,10 +9,7 @@ services:
       - .env
     environment:
       PORT: "80"
-      DATABASE_URL: postgres://postgres:postgres@db/postgres
-      POOL_SIZE: 30
       REDIS_HOST: localhost
-      DB_HOST: localhost
     depends_on:
       - db
       - redis
@@ -37,10 +34,7 @@ services:
       - .env
     environment:
       PORT: "80"
-      DATABASE_URL: postgres://postgres:postgres@db/postgres
-      POOL_SIZE: 30
       REDIS_HOST: localhost
-      DB_HOST: localhost
     depends_on:
       - db
       - redis
@@ -81,9 +75,9 @@ services:
       - ./db/sql_entry.sql:/docker-entrypoint-initdb.d/init.sql
     command: postgres -c log_min_messages=FATAL
     environment:
-      POSTGRES_USER: root
-      POSTGRES_PASSWORD: root
-      POSTGRES_DB: postgresdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: possas1*
+      POSTGRES_DB: postgres
     ports:
       - "5432:5432"
     deploy:
@@ -92,7 +86,7 @@ services:
           cpus: "0.7"
           memory: "1.3GB"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 5s
       timeout: 5s
       retries: 20

@@ -7,10 +7,10 @@ use serde::Deserialize;
 
 type ResultPoolError<T> = Result<T, Box<(dyn Error + Send + Sync + 'static)>>;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct DbConfig {
     pub host: String,
-    pub port: u64,
+    pub port: String,
     pub name: String,
     pub user: String,
     pub pwd: String,
@@ -19,10 +19,11 @@ pub struct DbConfig {
 
 impl DbConfig {
     pub fn new() -> Result<DbConfig, ConfigError> {
-        Config::builder()
+        let cfg = Config::builder()
             .add_source(Environment::with_prefix("DB"))
-            .build()?
-            .try_deserialize()
+            .build()?;
+
+        cfg.try_deserialize()
     }       
 }
 

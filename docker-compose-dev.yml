@@ -2,13 +2,25 @@ version: "3.5"
 
 services:
   postgres:
-    container_name: asc_postgres
     image: postgres:15
+    container_name: postgres
+    volumes:
+      - ./db/sql_entry.sql:/docker-entrypoint-initdb.d/init.sql
+    command: postgres -c log_min_messages=FATAL
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: possas1*
       POSTGRES_DB: postgres
     ports:
       - "5432:5432"
-    volumes:
-      - ./db:/docker-entrypoint-initdb.d
+    deploy:
+      resources:
+        limits:
+          cpus: "0.7"
+          memory: "1.3GB"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
