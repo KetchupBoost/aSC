@@ -70,9 +70,7 @@ services:
   # DATABASE
   db:
     image: postgres:15
-    container_name: postgres
-    volumes:
-      - ./db/sql_entry.sql:/docker-entrypoint-initdb.d/init.sql
+    container_name: postgres_dev
     command: postgres -c log_min_messages=FATAL
     environment:
       POSTGRES_USER: postgres
@@ -91,13 +89,15 @@ services:
       timeout: 5s
       retries: 20
       start_period: 10s
-    
+
   # REDIS
   redis:
     image: redis
     hostname: redis
     network_mode: host
     command: redis-server --save "" --appendonly no --maxclients 20000
+    ports:
+      - "127.0.0.1:6379:6379"
     deploy:
       resources:
         limits:
