@@ -7,7 +7,7 @@ services:
     command: postgres -c log_min_messages=FATAL
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: possas1*
+      POSTGRES_PASSWORD: postgres
       POSTGRES_DB: postgres
     volumes:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
