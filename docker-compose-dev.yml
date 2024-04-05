@@ -2,13 +2,41 @@ version: "3.5"
 
 services:
   postgres:
-    container_name: asc_postgres
     image: postgres:15
+    container_name: postgres_dev
+    command: postgres -c log_min_messages=FATAL
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: postgres
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "5432:5432"
-    volumes:
-      - ./db:/docker-entrypoint-initdb.d
+    deploy:
+      resources:
+        limits:
+          cpus: "0.7"
+          memory: "1.3GB"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER} -d ${DATABASE_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  # REDIS
+  redis:
+    container_name: redis_dev
+    image: redis
+    hostname: redis
+    # network_mode: host
+    command: redis-server --appendonly no --maxclients 20000
+    ports:
+      - "127.0.0.1:6379:6379"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.15'
+          memory: '0.3GB'
+          

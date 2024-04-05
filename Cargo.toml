@@ -7,11 +7,17 @@ edition = "2021"
 
 [dependencies]
 axum = "0.7.4"
+config = "0.14.0"
+dotenv = "0.15.0"
+fred = { version = "8.0.5", features = ["serde-json", "enable-rustls", "rustls", "partial-tracing"] }
 serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0.114"
+simple-error = "0.3.0"
 sqlx = { version = "0.7.3", features = ["postgres", "runtime-tokio", "time", "uuid", "macros"] }
 time = { version = "0.3.34", features = ["formatting", "macros", "serde", "parsing"] }
 tokio = { version = "1.36.0", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = "0.3.18"
 uuid = { version = "1.7.0", features = ["v7", "serde"] }
 watch = "0.2.3"
 
