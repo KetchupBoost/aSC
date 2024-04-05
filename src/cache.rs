@@ -1,4 +1,4 @@
-use std::error::Error;
+use std::{error::Error, fmt::Display};
 
 use fred::{clients::RedisPool, interfaces::{ClientLike, KeysInterface, ServerInterface}, types::{Builder, Expiration, ReconnectPolicy, RedisConfig, RespVersion, SetOptions}};
 
@@ -14,6 +14,7 @@ impl RedisConn {
     pub async fn connect(rd_cfg: RedisCfg, flush: bool) -> DBError<Self> {
         let config = RedisConfig::from_url(&rd_cfg.url)?;
 
+        dbg!(&config);
         let redis_pool = Builder::from_config(config)
             .with_performance_config(|config| {
                 config.auto_pipeline = true;
@@ -45,12 +46,16 @@ impl RedisConn {
         }
     }
 
-    pub async fn get_person(&self, nick: String) -> DBError<Option<Person>> {
-        let value: Option<_> = self.pool.get(nick).await?;
+    pub async fn get_person<T>(&self, key: &T) -> DBError<Option<Person>>
+    where 
+        T: Display
+    {
+        let value = format!("{}", key);
+        let value: Option<_> = self.pool.get(value).await?;
 
         let person = match value {
-            Some(x) => match serde_json::from_value(x) {
-                Ok(x) => Some(x),
+            Some(value) => match serde_json::from_value(value) {
+                Ok(person) => Some(person),
                 Err(_) => None,
             },
             None => None,
@@ -60,7 +65,7 @@ impl RedisConn {
 
     pub async fn set_person(
         &self,
-        nick: String,
+        key: String,
         person: Person,
         expiration: Option<Expiration>,
         set_opts: Option<SetOptions>,
@@ -69,7 +74,7 @@ impl RedisConn {
         let value: _ = serde_json::to_value(person)?.to_string();
         Ok(
             self.pool.set(
-                nick, 
+                key, 
                 value,
                 expiration, 
                 set_opts, 

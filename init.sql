@@ -1,5 +1,3 @@
--- https://docs.rs/sqlx/0.5/sqlx/macro.migrate.html
--- Add migration script here
 CREATE EXTENSION pg_trgm;
 
 CREATE OR REPLACE FUNCTION ARRAY_TO_STRING_IMMUTABLE (

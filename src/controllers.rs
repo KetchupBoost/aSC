@@ -36,7 +36,6 @@ pub struct NewPerson {
 
 #[derive(Serialize, Clone, Deserialize)]
 #[serde(try_from="String")]
-
 pub struct PersonName(String);
 
 #[derive(Serialize, Clone, Deserialize)]
@@ -122,7 +121,7 @@ pub async fn search_by_id(
     State(stt): State<AppState>, 
     Path(person_id): Path<Uuid>
 ) -> impl IntoResponse {
-    match stt.database.find_person(person_id).await {
+    match stt.database.find_person(person_id, &stt).await {
         Ok(Some(person)) => Ok(Json(person)),
         Ok(None) => Err(StatusCode::NOT_FOUND),
         _ => Err(StatusCode::INTERNAL_SERVER_ERROR),

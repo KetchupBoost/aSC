@@ -4,17 +4,15 @@ services:
   # API 1
   api1:
     build: .
+    container_name: api1
     hostname: api1
     env_file:
-      - .env
-    environment:
-      PORT: "80"
-      REDIS_HOST: localhost
+      - path: ./.env
     depends_on:
-      - db
+      - postgres
       - redis
     expose:
-      - "80"
+      - "80:80"
     deploy:
       resources:
         limits:
@@ -29,17 +27,15 @@ services:
   # API 2
   api2:
     build: .
+    container_name: api2
     hostname: api2
     env_file:
-      - .env
-    environment:
-      PORT: "80"
-      REDIS_HOST: localhost
+      - path: ./.env
     depends_on:
-      - db
+      - postgres
       - redis
     expose:
-      - "80"
+      - "80:80"
     deploy:
       resources:
         limits:
@@ -53,7 +49,8 @@ services:
 
   # NGINX
   nginx:
-    image: nginx:latest
+    image: nginx
+    container_name: nginx
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
@@ -68,23 +65,26 @@ services:
           memory: "0.5GB"
 
   # DATABASE
-  db:
+  postgres:
     image: postgres:15
-    container_name: postgres_dev
+    container_name: postgres
+    hostname: postgres
     command: postgres -c log_min_messages=FATAL
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: possas1*
+      POSTGRES_PASSWORD: postgres
       POSTGRES_DB: postgres
-    ports:
-      - "5432:5432"
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     deploy:
       resources:
         limits:
           cpus: "0.7"
           memory: "1.3GB"
+    ports:
+      - 5432:5432
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER} -d ${DATABASE_NAME}"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -94,7 +94,7 @@ services:
   redis:
     image: redis
     hostname: redis
-    network_mode: host
+    container_name: redis
     command: redis-server --save "" --appendonly no --maxclients 20000
     ports:
       - "127.0.0.1:6379:6379"

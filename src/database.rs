@@ -1,12 +1,8 @@
-
-use std::sync::Arc;
-
-use axum::{extract::State, routing::get};
 use fred::types::{Expiration, SetOptions};
 use sqlx::Row;
 use uuid::Uuid;
 use sqlx::{postgres::PgPoolOptions, PgPool};
-use crate::{cache::RedisConn, config::DbConfig, controllers::{AppState, NewPerson, Person, PersonName, PersonNick}, error_handler::{DBError, DatabaseError}};
+use crate::{config::DbConfig, controllers::{AppState, NewPerson, Person, PersonName, PersonNick}, error_handler::{DBError, DatabaseError}};
 
 #[derive(Debug)]
 pub struct PostgresConn {
@@ -15,20 +11,27 @@ pub struct PostgresConn {
 
 impl PostgresConn {
     pub async fn connect(cfg: DbConfig) -> DBError<Self> {
+        dbg!(&cfg);
         let pg = PostgresConn {
                 pool: PgPoolOptions::new()
                     .max_connections(cfg.pool)
                     .connect(&cfg.url)
                     .await?
         };
-        
-        sqlx::migrate!().run(&pg.pool).await?;
-
+        println!("Database Connected!");
         Ok(pg)
     }
 
-    pub async fn find_person(&self, id: Uuid) -> DBError<Option<Person>> {
-        sqlx::query_as!(
+    pub async fn find_person(&self, id: Uuid, state: &AppState) -> DBError<Option<Person>> {
+        let _ = state.cache.connected().await?;
+        
+        let get_person_by_id = state.cache.get_person(&id).await?; 
+        match get_person_by_id { 
+            Some(person) => return Ok(Some(person)),
+            None => ()
+        };        
+
+        let person = sqlx::query_as!(
             Person,
             "
             SELECT id, name, nick, birth_date, stack
@@ -39,7 +42,29 @@ impl PostgresConn {
         )
         .fetch_optional(&self.pool)
         .await
-        .map_err(DatabaseError::from)
+        .map_err(DatabaseError::from)?;
+
+        if let Some(person) = person 
+        {
+            let state = state.clone();
+            let person_clone = person.clone();
+            let id = id.to_string();
+
+            tokio::spawn(async move {
+                let _ = state.cache.set_person(
+                    id, 
+                    person_clone, 
+                    Some(Expiration::KEEPTTL), 
+                    Some(SetOptions::NX), 
+                    true
+                ).await.unwrap();
+            });
+
+            Ok(Some(person))
+        } else {
+            Ok(person)
+
+        }
     }
 
     pub async fn create_person(&self, new_person: NewPerson, state: &AppState) -> DBError<Person> {
@@ -48,7 +73,7 @@ impl PostgresConn {
 
         let _ = state.cache.connected().await?;
 
-        let get_person = state.cache.get_person(person_nick.clone()).await?; 
+        let get_person = state.cache.get_person(&person_nick).await?; 
         match get_person { 
             Some(_) => return Err(DatabaseError::UniqueViolation),
             None => ()
@@ -95,6 +120,7 @@ impl PostgresConn {
                 ).await.unwrap();
             });
         }
+
         Ok(person)
     }
 
@@ -104,7 +130,7 @@ impl PostgresConn {
             "
             SELECT id, name, nick, birth_date, stack
             FROM person
-            WHERE to_tsquery('person', $1) @@ search
+            WHERE search ILIKE $1
             LIMIT 50
             ",
             query

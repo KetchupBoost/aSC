@@ -10,7 +10,7 @@ pub struct DbConfig {
 impl DbConfig {
     pub fn get() -> Result<Self, ConfigError> {
         let cfg = Config::builder()
-            .add_source(Environment::with_prefix("DB"))
+            .add_source(Environment::with_prefix("DATABASE"))
             .build()?;
 
         cfg.try_deserialize()
